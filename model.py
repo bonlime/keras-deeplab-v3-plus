@@ -3,14 +3,28 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+""" Original __docstring__
+Xception V1 model for Keras.
+On ImageNet, this model gets to a top-1 validation accuracy of 0.790
+and a top-5 validation accuracy of 0.945.
+Do note that the input image format for this model is different than for
+the VGG16 and ResNet models (299x299 instead of 224x224),
+and that the input preprocessing function
+is also different (same as Inception V3).
+Also do note that this model is only available for the TensorFlow backend,
+due to its reliance on `SeparableConvolution` layers.
+# Reference
+- [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
+"""
+"Xception imports"
 
 import os
 import warnings
-
+import numpy as np
 from keras.models import Model
-from keras import layers
-from keras.layers import Dense, Input, BatchNormalization, Activation, Conv2D, Concatenate
-from keras.layers import SeparableConv2D, MaxPooling2D, DepthwiseConv2D
+from keras import layers  # not sure if needed
+from keras.layers import Dense, Input, BatchNormalization, Activation, Conv2D, Concatenate, Softmax
+from keras.layers import SeparableConv2D, MaxPooling2D, DepthwiseConv2D, ZeroPadding2D
 from keras.layers import GlobalAveragePooling2D, GlobalMaxPooling2D, AveragePooling2D, Dropout
 from keras.engine.topology import get_source_inputs
 from keras.utils.data_utils import get_file
@@ -18,42 +32,53 @@ from keras import backend as K
 from keras.applications import imagenet_utils
 from keras.applications.imagenet_utils import decode_predictions
 from keras.applications.imagenet_utils import _obtain_input_shape
+
 from keras.engine import Layer, InputSpec
 from keras.utils import conv_utils
-
-""" 
-DeepLabv3 based on modified version of Xception.
-Model architecture is from original TF graph provided by authors
-"""
 
 
 class BilinearUpsampling(Layer):
     '''Just a simple bilinear upsampling layer. Works only with TF.
     # Arguments
-        upsampling: tuple of 2 numbers > 0. The upsampling ratio for h and w.
+        upsampling: tuple of 2 numbers > 0. The upsampling ratio for h and w
+        output_size: used instead of upsampling arg! 
         name: the name of the layer
     '''
 
-    def __init__(self, upsampling=(2, 2), data_format=None, **kwargs):
+    def __init__(self, upsampling=(2, 2), output_size=None, data_format=None, **kwargs):
 
         super(BilinearUpsampling, self).__init__(**kwargs)
+
         self.data_format = conv_utils.normalize_data_format(data_format)
-        self.upsampling = conv_utils.normalize_tuple(upsampling, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
+        if output_size:
+            self.upsample_size = conv_utils.normalize_tuple(
+                output_size, 2, 'size')
+            self.upsampling = None
+        else:
+            self.upsampling = conv_utils.normalize_tuple(upsampling, 2, 'size')
 
     def compute_output_shape(self, input_shape):
-        height = self.upsampling[0] * \
-            input_shape[1] if input_shape[1] is not None else None
-        width = self.upsampling[1] * \
-            input_shape[2] if input_shape[2] is not None else None
+        if self.upsampling:
+            height = self.upsampling[0] * \
+                input_shape[1] if input_shape[1] is not None else None
+            width = self.upsampling[1] * \
+                input_shape[2] if input_shape[2] is not None else None
+        else:
+            height = self.upsample_size[0]
+            width = self.upsample_size[1]
         return (input_shape[0],
                 height,
                 width,
                 input_shape[3])
 
     def call(self, inputs):
-        return K.tf.image.resize_bilinear(inputs, (int(inputs.shape[1]*self.upsampling[0]),
-                                                   int(inputs.shape[2]*self.upsampling[1])))
+        if self.upsampling:
+            return K.tf.image.resize_bilinear(inputs, (inputs.shape[1] * self.upsampling[0],
+                                                       inputs.shape[2] * self.upsampling[1]))
+        else:
+            return K.tf.image.resize_bilinear(inputs, (self.upsample_size[0],
+                                                       self.upsample_size[1]))
 
     def get_config(self):
         config = {'size': self.upsampling,
@@ -62,331 +87,145 @@ class BilinearUpsampling(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def SepConv_BN(x, filters, prefix, strides=1, activation=None, end_act=True):
+def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activation=False):
     """ SepConv with BN between depthwise & pointwise. Optionally add activation
+        Implements right "same" padding for even kernel sizes
     Args: 
         x: input tensors
         filters: num of filters in pointwise convolution
         prefix: prefix before name
         strides: stride at depthwise conv
-        activation: activation to use"""
+        depth_activation: flag to use activation between"""
+    if stride == 1:
+        depth_padding = 'same'
+    else:
+        kernel_size_effective = kernel_size + (kernel_size - 1) * (rate - 1)
+        pad_total = kernel_size_effective - 1
+        pad_beg = pad_total // 2
+        pad_end = pad_total - pad_beg
+        x = ZeroPadding2D((pad_beg, pad_end))(x)
+        depth_padding = 'valid'
 
-    x = DepthwiseConv2D((3, 3), padding='same',
-                        use_bias=False, name=prefix + '_depthwise')(x)
+    if not depth_activation:
+        x = Activation('relu')(x)
+    x = DepthwiseConv2D((kernel_size, kernel_size), strides=(stride, stride), dilation_rate=(rate, rate),
+                        padding=depth_padding, use_bias=False, name=prefix + '_depthwise')(x)
     x = BatchNormalization(name=prefix + '_depthwise_BN')(x)
-    if activation:
-        x = Activation(activation)(x)
+    if depth_activation:
+        x = Activation('relu')(x)
     x = Conv2D(filters, (1, 1), padding='same',
                use_bias=False, name=prefix + '_pointwise')(x)
     x = BatchNormalization(name=prefix + '_pointwise_BN')(x)
-    x = Activation(activation)(x)
+    if depth_activation:
+        x = Activation('relu')(x)
+
     return x
 
 
-def Deeplabv3(input_shape=(512, 512, 3), num_classes=21, last_activation=None, weights='pascalvoc', output_stride=16):
-    """ Requires input to be scaled between [-1,1]. OS == Output stride (inp_shape/decoder output)
-         Args: 
-             input_shape: model input shape. originaly xception had 299x299, bit deeplab used 512
-             num_classes: number of classes. output has shape (input_shape[0],input_shape[1],num_classes)
-             last_activation: activation on logits
-             pretrain: one of {"imagenet","pascalvoc",None}
-             output_stride: currently only 16 is supported."""
+def conv2d_same(x, filters, prefix, kernel_size=3, stride=1, rate=1):
+    """Implements right 'same' padding for even kernel sizes
+        Without this there is a 1 pixel drift when stride = 2"""
+    if stride == 1:
+        return Conv2D(filters,
+                      (kernel_size, kernel_size),
+                      strides=(stride, stride),
+                      padding='same', use_bias=False,
+                      dilation_rate=(rate, rate),
+                      name=prefix)(x)
+    else:
+        kernel_size_effective = kernel_size + (kernel_size - 1) * (rate - 1)
+        pad_total = kernel_size_effective - 1
+        pad_beg = pad_total // 2
+        pad_end = pad_total - pad_beg
+        x = ZeroPadding2D((pad_beg, pad_end))(x)
+        return Conv2D(filters,
+                      (kernel_size, kernel_size),
+                      strides=(stride, stride),
+                      padding='valid', use_bias=False,
+                      dilation_rate=(rate, rate),
+                      name=prefix)(x)
 
-    # Entry Flow
 
-    img_input = Input(shape=input_shape)
+def xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
+                   unit_rate_list=None, rate=1, depth_activation=False, return_skip=False):
+    """ Basic building block of modified Xception network"""
+    residual = inputs
+    for i in range(3):
+        residual = SepConv_BN(residual,
+                              depth_list[i],
+                              prefix + '_separable_conv{}'.format(i + 1),
+                              stride=stride if i == 2 else 1,
+                              rate=rate,
+                              depth_activation=depth_activation)
+        if i == 1:
+            skip = residual
+    if skip_connection_type == 'conv':
+        shortcut = conv2d_same(inputs, depth_list[-1], prefix + '_shortcut',
+                               kernel_size=1,
+                               stride=stride)
+        shortcut = BatchNormalization(name=prefix + '_shortcut_BN')(shortcut)
+        outputs = layers.add([residual, shortcut])
+    elif skip_connection_type == 'sum':
+        outputs = layers.add([residual, inputs])
+    elif skip_connection_type == 'none':
+        outputs = residual
+    if return_skip:
+        return outputs, skip
+    else:
+        return outputs
 
-    # CONV1_1 (notation like in TF graph)
-    x = Conv2D(32, (3, 3), strides=(2, 2), padding='same',
-               use_bias=False, name='entry_flow_conv1_1')(img_input)  # OS = 2
+
+def Deeplabv3(input_shape, num_classes=21, last_activation=None):
+
+    img_input = Input(input_shape)
+    x = Conv2D(32, (3, 3), strides=(2, 2),
+               name='entry_flow_conv1_1', use_bias=False)(img_input)
     x = BatchNormalization(name='entry_flow_conv1_1_BN')(x)
     x = Activation('relu')(x)
-    # CONV1_2
-    x = Conv2D(64, (3, 3), padding='same', use_bias=False,
-               name='entry_flow_conv1_2')(x)
+
+    x = conv2d_same(x, 64, 'entry_flow_conv1_2', 3, stride=1)
     x = BatchNormalization(name='entry_flow_conv1_2_BN')(x)
     x = Activation('relu')(x)
 
-    # BLOCK 1
-    residual = Conv2D(128, (1, 1), strides=(2, 2),
-                      padding='same', use_bias=False, name='entry_flow_block1_shortcut')(x)
-    residual = BatchNormalization(
-        name='entry_flow_block1_shortcut_BN')(residual)
-
-    # SEPARABLE_CONV_1
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block1_separable_conv1_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv1_depthwise_BN')(x)
-    x = Conv2D(128, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block1_separable_conv1_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv1_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_2
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block1_separable_conv2_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv2_depthwise_BN')(x)
-    x = Conv2D(128, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block1_separable_conv2_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv2_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_3
-    x = DepthwiseConv2D((3, 3), strides=(2, 2), padding='same', use_bias=False,
-                        name='entry_flow_block1_separable_conv3_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv3_depthwise_BN')(x)
-    x = Conv2D(128, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block1_separable_conv3_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block1_separable_conv3_pointwise_BN')(x)
-    x = layers.add([x, residual])  # OS = 4
-
-    # BLOCK 2
-    residual = Conv2D(256, (1, 1), strides=(2, 2),
-                      padding='same', use_bias=False, name='entry_flow_block2_shortcut')(x)
-    residual = BatchNormalization(
-        name='entry_flow_block2_shortcut_BN')(residual)
-
-    # SEPARABLE_CONV_1
-    x = Activation('relu')(x)
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block2_separable_conv1_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block2_separable_conv1_depthwise_BN')(x)
-    x = Conv2D(256, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block2_separable_conv1_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block2_separable_conv1_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_2
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block2_separable_conv2_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block2_separable_conv2_depthwise_BN')(x)
-    x = Conv2D(256, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block2_separable_conv2_pointwise')(x)
-    skip1 = BatchNormalization(
-        name='entry_flow_block2_separable_conv2_pointwise_BN')(x)  # skip мой
-    x = Activation('relu')(skip1)
-
-    # SEPARABLE_CONV_3
-    x = DepthwiseConv2D((3, 3), strides=(2, 2), padding='same', use_bias=False,
-                        name='entry_flow_block2_separable_conv3_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block2_separable_conv3_depthwise_BN')(x)
-    x = Conv2D(256, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block2_separable_conv3_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block2_separable_conv3_pointwise_BN')(x)
-    x = layers.add([x, residual])  # OS = 8
-
-    # BLOCK 3
-    residual = Conv2D(728, (1, 1), strides=(2, 2),
-                      padding='same', use_bias=False, name='entry_flow_block3_shortcut')(x)
-    residual = BatchNormalization(
-        name='entry_flow_block3_shortcut_BN')(residual)
-
-    # SEPARABLE_CONV_1
-    x = Activation('relu')(x)
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block3_separable_conv1_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv1_depthwise_BN')(x)
-    x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block3_separable_conv1_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv1_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_2
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='entry_flow_block3_separable_conv2_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv2_depthwise_BN')(x)
-    x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block3_separable_conv2_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv2_pointwise_BN')(x)  # skip мой
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_3
-    x = DepthwiseConv2D((3, 3), strides=(2, 2), padding='same', use_bias=False,
-                        name='entry_flow_block3_separable_conv3_depthwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv3_depthwise_BN')(x)
-    x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-               name='entry_flow_block3_separable_conv3_pointwise')(x)
-    x = BatchNormalization(
-        name='entry_flow_block3_separable_conv3_pointwise_BN')(x)
-    x = layers.add([x, residual])  # OS = 16
-
-    # Middle Flow
+    x = xception_block(x, [128, 128, 128], 'entry_flow_block1',
+                       skip_connection_type='conv', stride=2,
+                       depth_activation=False)
+    x, skip1 = xception_block(x, [256, 256, 256], 'entry_flow_block2',
+                              skip_connection_type='conv', stride=2,
+                              depth_activation=False, return_skip=True)
+    x = xception_block(x, [728, 728, 728], 'entry_flow_block3',
+                       skip_connection_type='conv', stride=2,
+                       depth_activation=False)
     for i in range(16):
-        residual = x
-        prefix = 'middle_flow_unit_' + str(i+1)
+        x = xception_block(x, [728, 728, 728], 'middle_flow_unit_{}'.format(i + 1),
+                           skip_connection_type='sum', stride=1,
+                           depth_activation=False)
 
-        x = Activation('relu')(x)
-        x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                            name=prefix + '_separable_conv1_depthwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv1_depthwise_BN')(x)
-        x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-                   name=prefix + '_separable_conv1_pointwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv1_pointwise_BN')(x)
-
-        x = Activation('relu')(x)
-        x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                            name=prefix + '_separable_conv2_depthwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv2_depthwise_BN')(x)
-        x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-                   name=prefix + '_separable_conv2_pointwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv2_pointwise_BN')(x)
-
-        x = Activation('relu')(x)
-        x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                            name=prefix + '_separable_conv3_depthwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv3_depthwise_BN')(x)
-        x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-                   name=prefix + '_separable_conv3_pointwise')(x)
-        x = BatchNormalization(
-            name=prefix + '_separable_conv3_pointwise_BN')(x)
-
-        x = layers.add([x, residual])
-
-    # Exit flow
-
-    # BLOCK 1
-    residual = Conv2D(1024, (1, 1), strides=(1, 1),
-                      padding='same', use_bias=False, name='exit_flow_block1_shortcut')(x)
-    residual = BatchNormalization(
-        name='exit_flow_block1_shortcut_BN')(residual)
-
-    # SEPARABLE_CONV_1
-    x = Activation('relu')(x)
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='exit_flow_block1_separable_conv1_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv1_depthwise_BN')(x)
-    x = Conv2D(728, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block1_separable_conv1_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv1_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_2
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='exit_flow_block1_separable_conv2_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv2_depthwise_BN')(x)
-    x = Conv2D(1024, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block1_separable_conv2_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv2_pointwise_BN')(x)  # skip мой
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_3
-    x = DepthwiseConv2D((3, 3), strides=(1, 1), padding='same', use_bias=False,
-                        name='exit_flow_block1_separable_conv3_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv3_depthwise_BN')(x)
-    x = Conv2D(1024, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block1_separable_conv3_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block1_separable_conv3_pointwise_BN')(x)
-    x = layers.add([x, residual])  # OS = 16 !!!
-
-    # BLOCK 2
-
-    # SEPARABLE_CONV_1
-    # Only this encoder block has activation after depthwise convolution!
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='exit_flow_block2_separable_conv1_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv1_depthwise_BN')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(1536, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block2_separable_conv1_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv1_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_2
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='exit_flow_block2_separable_conv2_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv2_depthwise_BN')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(1536, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block2_separable_conv2_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv2_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    # SEPARABLE_CONV_3
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='exit_flow_block2_separable_conv3_depthwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv3_depthwise_BN')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(2048, (1, 1), padding='same', use_bias=False,
-               name='exit_flow_block2_separable_conv3_pointwise')(x)
-    x = BatchNormalization(
-        name='exit_flow_block2_separable_conv3_pointwise_BN')(x)
-    x = Activation('relu')(x)
+    x = xception_block(x, [728, 1024, 1024], 'exit_flow_block1',
+                       skip_connection_type='conv', stride=1,
+                       depth_activation=False)
+    x = xception_block(x, [1536, 1536, 2048], 'exit_flow_block2',
+                       skip_connection_type='none', stride=1,
+                       depth_activation=True)
 
     # end of feature extractor
     # branching for Atrous Spatial Pyramid Pooling
-    # How to use BN properly: freeze all layers up to 'exit_flow_block2_separable_conv3_pointwise_BN'
-    # And use the biggest possible batch_size
+
+    # How to use BN properly: freeze all layers up to 358, use the biggest possible batch_size
     # In the article they said many times that it is very important
 
-    # simple 1x1 conv
+    # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN')(b0)
     b0 = Activation('relu', name='aspp0_activation')(b0)
-
     # rate = 6
-    b1 = DepthwiseConv2D((3, 3), dilation_rate=(
-        6, 6), padding='same', use_bias=False, name='aspp1_depthwise')(x)
-    b1 = BatchNormalization(name='aspp1_depthwise_BN')(b1)
-    b1 = Activation('relu')(b1)
-    b1 = Conv2D(256, (1, 1), padding='same',
-                use_bias=False, name='aspp1_pointwise')(b1)
-    b1 = BatchNormalization(name='aspp1_pointwise_BN')(b1)
-    b1 = Activation('relu', name='aspp1_activation')(b1)
-
-    # rate = 12
-    b2 = DepthwiseConv2D((3, 3), dilation_rate=(
-        12, 12), padding='same', use_bias=False, name='aspp2_depthwise')(x)
-    b2 = BatchNormalization(name='aspp2_depthwise_BN')(b2)
-    b2 = Activation('relu')(b2)
-    b2 = Conv2D(256, (1, 1), padding='same',
-                use_bias=False, name='aspp2_pointwise')(b2)
-    b2 = BatchNormalization(name='aspp2_pointwise_BN')(b2)
-    b2 = Activation('relu', name='aspp2_activation')(b2)
-
-    # rate = 18
-    b3 = DepthwiseConv2D((3, 3), dilation_rate=(
-        18, 18), padding='same', use_bias=False, name='aspp3_depthwise')(x)
-    b3 = BatchNormalization(name='aspp3_depthwise_BN')(b3)
-    b3 = Activation('relu')(b3)
-    b3 = Conv2D(256, (1, 1), padding='same',
-                use_bias=False, name='aspp3_pointwise')(b3)
-    b3 = BatchNormalization(name='aspp3_pointwise_BN')(b3)
-    b3 = Activation('relu', name='aspp3_activation')(b3)
-
-    # Image feature branch.
-    out_shape = int(input_shape[0] / output_stride)
+    b1 = SepConv_BN(x, 256, 'aspp1', rate=6, depth_activation=True)
+    # hole = 12
+    b2 = SepConv_BN(x, 256, 'aspp2', rate=12, depth_activation=True)
+    # hole = 18
+    b3 = SepConv_BN(x, 256, 'aspp3', rate=18, depth_activation=True)
+    # Image Feature branch
+    out_shape = int(np.ceil(input_shape[0] / 16))
     b4 = AveragePooling2D(pool_size=(out_shape, out_shape))(x)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
@@ -394,57 +233,39 @@ def Deeplabv3(input_shape=(512, 512, 3), num_classes=21, last_activation=None, w
     b4 = Activation('relu')(b4)
     b4 = BilinearUpsampling((out_shape, out_shape))(b4)
 
-    # concatenate & project ASPP branches
+    # concatenate ASPP branches & project
     x = Concatenate()([b4, b0, b1, b2, b3])
-
     x = Conv2D(256, (1, 1), padding='same',
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN')(x)
     x = Activation('relu')(x)
-    x = Dropout(0.9)(x)  # not sure if this drop rate was used
+    # I'm not sure if this is the correct droprate
+    x = Dropout(0.5)(x)
 
     # DeepLab v.3+ decoder
 
     # Feature projection
+    # x4 block
     x = BilinearUpsampling((4, 4))(x)
     dec_skip1 = Conv2D(48, (1, 1), padding='same', use_bias=False,
                        activation='relu', name='feature_projection0')(skip1)
     dec_skip1 = BatchNormalization(name='feature_projection0_BN')(dec_skip1)
     dec_skip1 = Activation('relu')(dec_skip1)
     x = Concatenate()([x, dec_skip1])
+    x = SepConv_BN(x, 256, 'decoder_conv0', depth_activation=True)
+    x = SepConv_BN(x, 256, 'decoder_conv1', depth_activation=True)
 
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='decoder_conv0_depthwise')(x)
-    x = BatchNormalization(name='decoder_conv0_depthwise_BN')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(256, (1, 1), padding='same', use_bias=False,
-               name='decoder_conv0_pointwise')(x)
-    x = BatchNormalization(name='decoder_conv0_pointwise_BN')(x)
-    x = Activation('relu')(x)
-
-    x = DepthwiseConv2D((3, 3), padding='same', use_bias=False,
-                        name='decoder_conv1_depthwise')(x)
-    x = BatchNormalization(name='decoder_conv1_depthwise_BN')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(256, (1, 1), padding='same', use_bias=False,
-               name='decoder_conv1_pointwise')(x)
-    x = BatchNormalization(name='decoder_conv1_pointwise_BN')(x)
-    x = Activation('relu', name='prelogits_activation')(x)
-
-    # Final projection. The only place where there is bias term
+    # you can use it with arbitary number of classes
     if num_classes == 21:
-        logits_name = 'logits_semantic'
+        last_layer_name = 'logits_semantic'
     else:
-        logits_name = 'custom_logits_semantic'
-    x = Conv2D(num_classes, (1, 1), padding='same',
-               name=logits_name)(x)  # ,activation = 'sigmoid'
-
-    x = BilinearUpsampling((4, 4))(x)
+        last_layer_name = 'custom_logits_semantic'
+    x = Conv2D(num_classes, (1, 1), padding='same', name=last_layer_name)(x)
+    if last_activation:
+        x = Activation('sigmoid')(x)
+    x = BilinearUpsampling(output_size=(input_shape[0], input_shape[1]))(x)
 
     model = Model(img_input, x, name='deeplab')
-
-    if weights == 'pascalvoc':
-        model.load_weights('models/deeplabv3_weights_tf_dim_ordering_tf_kernels.h5', by_name=True)
 
     return model
 
