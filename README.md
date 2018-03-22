@@ -9,8 +9,9 @@ Segmentation results of original TF model. __Output Stride = 8__
     <img src="imgs/seg_results3.png" width=600></br>
 </p>
 This result is obtained as an argmax applied to logits at exit layer   
-Segmentation results of this repo model with loaded weights:  
-__This results were obtained with Output Stride = 16__  
+Segmentation results of this repo model with loaded weights.  
+
+This results were obtained with Output Stride = 16
 
 <p align="center">
     <img src="imgs/my_seg_results1.png" width=600></br>
