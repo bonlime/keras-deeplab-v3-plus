@@ -34,7 +34,3 @@ print('Saving model weights...')
 if not os.path.exists(MODEL_DIR):
     os.makedirs(MODEL_DIR)
 model.save_weights(os.path.join(MODEL_DIR, OUTPUT_WEIGHT_FILENAME))
-
-print('Saving model weights (no top)...')
-model_notop = Model(model.inputs, model.get_layer('prelogits_activation').output)
-model_notop.save_weights(os.path.join(MODEL_DIR, OUTPUT_WEIGHT_FILENAME_NOTOP))
