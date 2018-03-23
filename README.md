@@ -8,22 +8,22 @@ Segmentation results of original TF model. __Output Stride = 8__
     <img src="imgs/seg_results2.png" width=600></br>
     <img src="imgs/seg_results3.png" width=600></br>
 </p>
+
 This result is obtained as an argmax applied to logits at exit layer   
-Segmentation results of this repo model with loaded weights.  
+Segmentation results of this repo model with loaded weights and __OS = 8__  
+Results are simular to the TF model  
+<p align="center">
+    <img src="imgs/my_seg_results1_OS8.png" width=600></br>
+    <img src="imgs/my_seg_results2_OS8.png" width=600></br>
+    <img src="imgs/my_seg_results3_OS8.png" width=600></br>
+</p>
 
-This results were obtained with Output Stride = 16
-
+ 
+Segmentation results of this repo model with loaded weights and __OS = 16__  
 <p align="center">
     <img src="imgs/my_seg_results1.png" width=600></br>
     <img src="imgs/my_seg_results2.png" width=600></br>
     <img src="imgs/my_seg_results3.png" width=600></br>
 </p>
 
-Segmentation results of this repo model with OS = 8  
-I changed dilation (atrous) rate in ASPP branches to [12,24,36] and changed stride in entry_block_1 to 1 
-Results qualiy is much worse than original  
-<p align="center">
-    <img src="imgs/my_seg_results1_OS8.png" width=600></br>
-    <img src="imgs/my_seg_results2_OS8.png" width=600></br>
-    <img src="imgs/my_seg_results3_OS8.png" width=600></br>
-</p>
+

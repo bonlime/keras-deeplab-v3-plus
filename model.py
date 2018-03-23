@@ -175,7 +175,22 @@ def xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
         return outputs
 
 
-def Deeplabv3(input_shape, num_classes=21, last_activation=None):
+def Deeplabv3(input_shape, num_classes=21, last_activation=None, OS=16):
+    """Deeplab v3 model. 
+        Args:
+            input_shape: shape of input image. format CHUNNELS_LAST
+            num_classes: number of desired classes. If != 21, last layer is initialized randomly
+            last_activation: flag to use sigmoid activation after models logits
+            OS: determines input_shape/feature_extractor_output ratio. One of {8,16}
+    """
+    if OS == 8:
+        entry_block3_stride = 1
+        exit_block_rates = (2, 4)
+        atrous_rates = (12, 24, 36)
+    else:
+        entry_block3_stride = 2
+        exit_block_rates = (1, 1)
+        atrous_rates = (6, 12, 18)
 
     img_input = Input(input_shape)
     x = Conv2D(32, (3, 3), strides=(2, 2),
@@ -193,8 +208,9 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None):
     x, skip1 = xception_block(x, [256, 256, 256], 'entry_flow_block2',
                               skip_connection_type='conv', stride=2,
                               depth_activation=False, return_skip=True)
+
     x = xception_block(x, [728, 728, 728], 'entry_flow_block3',
-                       skip_connection_type='conv', stride=2,
+                       skip_connection_type='conv', stride=entry_block3_stride,
                        depth_activation=False)
     for i in range(16):
         x = xception_block(x, [728, 728, 728], 'middle_flow_unit_{}'.format(i + 1),
@@ -202,30 +218,31 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None):
                            depth_activation=False)
 
     x = xception_block(x, [728, 1024, 1024], 'exit_flow_block1',
-                       skip_connection_type='conv', stride=1,
+                       skip_connection_type='conv', stride=1, rate=exit_block_rates[0],
                        depth_activation=False)
     x = xception_block(x, [1536, 1536, 2048], 'exit_flow_block2',
-                       skip_connection_type='none', stride=1,
+                       skip_connection_type='none', stride=1, rate=exit_block_rates[1],
                        depth_activation=True)
 
     # end of feature extractor
     # branching for Atrous Spatial Pyramid Pooling
 
-    # How to use BN properly: freeze all layers up to 358, use the biggest possible batch_size
-    # In the article they said many times that it is very important
-
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN')(b0)
     b0 = Activation('relu', name='aspp0_activation')(b0)
-    # rate = 6
-    b1 = SepConv_BN(x, 256, 'aspp1', rate=6, depth_activation=True)
-    # hole = 12
-    b2 = SepConv_BN(x, 256, 'aspp2', rate=12, depth_activation=True)
-    # hole = 18
-    b3 = SepConv_BN(x, 256, 'aspp3', rate=18, depth_activation=True)
+
+    # rate = 6 (12)
+    b1 = SepConv_BN(x, 256, 'aspp1',
+                    rate=atrous_rates[0], depth_activation=True)
+    # hole = 12 (24)
+    b2 = SepConv_BN(x, 256, 'aspp2',
+                    rate=atrous_rates[1], depth_activation=True)
+    # hole = 18 (36)
+    b3 = SepConv_BN(x, 256, 'aspp3',
+                    rate=atrous_rates[2], depth_activation=True)
     # Image Feature branch
-    out_shape = int(np.ceil(input_shape[0] / 16))
+    out_shape = int(input_shape[0] / OS)  # np.ceil
     b4 = AveragePooling2D(pool_size=(out_shape, out_shape))(x)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
@@ -240,13 +257,14 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None):
     x = BatchNormalization(name='concat_projection_BN')(x)
     x = Activation('relu')(x)
     # I'm not sure if this is the correct droprate
-    x = Dropout(0.5)(x)
+    x = Dropout(0.9)(x)
 
     # DeepLab v.3+ decoder
 
     # Feature projection
-    # x4 block
-    x = BilinearUpsampling((4, 4))(x)
+    # x4 (x2) block
+    x = BilinearUpsampling(output_size=(
+        int(input_shape[0] / 4), int(input_shape[1] / 4)))(x)
     dec_skip1 = Conv2D(48, (1, 1), padding='same', use_bias=False,
                        activation='relu', name='feature_projection0')(skip1)
     dec_skip1 = BatchNormalization(name='feature_projection0_BN')(dec_skip1)
