@@ -256,8 +256,7 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None, OS=16):
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN')(x)
     x = Activation('relu')(x)
-    # I'm not sure if this is the correct droprate
-    x = Dropout(0.9)(x)
+    x = Dropout(0.1)(x)
 
     # DeepLab v.3+ decoder
 
