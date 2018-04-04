@@ -221,7 +221,7 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None, OS=16):
     x = BatchNormalization(name='entry_flow_conv1_1_BN')(x)
     x = Activation('relu')(x)
 
-    x = conv2d_same(x, 64, 'entry_flow_conv1_2', 3, stride=1)
+    x = conv2d_same(x, 64, 'entry_flow_conv1_2', kernel_size = 3, stride=1)
     x = BatchNormalization(name='entry_flow_conv1_2_BN')(x)
     x = Activation('relu')(x)
 
