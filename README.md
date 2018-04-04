@@ -27,4 +27,8 @@ Results are still good
     <img src="imgs/my_seg_results3_OS16.png" width=600></br>
 </p>
 
+How to use this model with custom input shape and custom number of classes:  
+`from model import Deeplabv3`  
+`deeplab_model = Deeplabv3((512,512,3), num_classes=4, last_activation=True, OS=8)`  
+
 
