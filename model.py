@@ -3,20 +3,17 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-""" Original __docstring__
-Xception V1 model for Keras.
-On ImageNet, this model gets to a top-1 validation accuracy of 0.790
-and a top-5 validation accuracy of 0.945.
-Do note that the input image format for this model is different than for
-the VGG16 and ResNet models (299x299 instead of 224x224),
-and that the input preprocessing function
-is also different (same as Inception V3).
-Also do note that this model is only available for the TensorFlow backend,
+""" Deeplabv3+ model for Keras.
+This model is based on TF repo:
+https://github.com/tensorflow/models/tree/master/research/deeplab
+On Pascal VOC, original model gets to 84.56% mIOU
+
+This model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers.
 # Reference
-- [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
+- [Encoder-Decoder with Atrous Separable Convolution 
+    for Semantic Image Segmentation](https://arxiv.org/pdf/1802.02611.pdf)
 """
-"Xception imports"
 
 import os
 import warnings
@@ -38,12 +35,11 @@ from keras.utils import conv_utils
 
 
 class BilinearUpsampling(Layer):
-    '''Just a simple bilinear upsampling layer. Works only with TF.
-    # Arguments
-        upsampling: tuple of 2 numbers > 0. The upsampling ratio for h and w
-        output_size: used instead of upsampling arg! 
-        name: the name of the layer
-    '''
+    """Just a simple bilinear upsampling layer. Works only with TF.
+       Args
+           upsampling: tuple of 2 numbers > 0. The upsampling ratio for h and w
+           output_size: used instead of upsampling arg if passed! 
+    """
 
     def __init__(self, upsampling=(2, 2), output_size=None, data_format=None, **kwargs):
 
@@ -90,14 +86,19 @@ class BilinearUpsampling(Layer):
 
 
 def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activation=False, epsilon=1e-3):
-    """ SepConv with BN between depthwise & pointwise. Optionally add activation
+    """ SepConv with BN between depthwise & pointwise. Optionally add activation after BN
         Implements right "same" padding for even kernel sizes
-    Args: 
-        x: input tensors
-        filters: num of filters in pointwise convolution
-        prefix: prefix before name
-        strides: stride at depthwise conv
-        depth_activation: flag to use activation between"""
+        Args: 
+            x: input tensor
+            filters: num of filters in pointwise convolution
+            prefix: prefix before name
+            stride: stride at depthwise conv
+            kernel_size: kernel size for depthwise convolution
+            rate: atrous rate for depthwise convolution
+            depth_activation: flag to use activation between depthwise & poinwise convs
+            epsilon: epsilon to use in BN layer
+    """
+    
     if stride == 1:
         depth_padding = 'same'
     else:
@@ -124,9 +125,17 @@ def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activa
     return x
 
 
-def conv2d_same(x, filters, prefix, kernel_size=3, stride=1, rate=1):
+def conv2d_same(x, filters, prefix, stride=1, kernel_size=3,  rate=1):
     """Implements right 'same' padding for even kernel sizes
-        Without this there is a 1 pixel drift when stride = 2"""
+        Without this there is a 1 pixel drift when stride = 2
+        Args: 
+            x: input tensor
+            filters: num of filters in pointwise convolution
+            prefix: prefix before name
+            stride: stride at depthwise conv
+            kernel_size: kernel size for depthwise convolution
+            rate: atrous rate for depthwise convolution
+    """
     if stride == 1:
         return Conv2D(filters,
                       (kernel_size, kernel_size),
@@ -149,8 +158,18 @@ def conv2d_same(x, filters, prefix, kernel_size=3, stride=1, rate=1):
 
 
 def xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
-                   unit_rate_list=None, rate=1, depth_activation=False, return_skip=False):
-    """ Basic building block of modified Xception network"""
+                   rate=1, depth_activation=False, return_skip=False):
+    """ Basic building block of modified Xception network
+        Args:
+            inputs: input tensor 
+            depth_list: number of filters in each SepConv layer. len(depth_list) == 3
+            prefix: prefix before name
+            skip_connection_type: one of {'conv','sum','none'}
+            stride: stride at depthwise conv
+            rate: atrous rate for depthwise convolution
+            depth_activation: flag to use activation between depthwise & poinwise convs
+            return_skip: flag to return additional tensor after 2 SepConvs for decoder
+            """
     residual = inputs
     for i in range(3):
         residual = SepConv_BN(residual,
@@ -187,7 +206,7 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None, OS=16):
     """
     if OS == 8:
         entry_block3_stride = 1
-        middle_block_rate = 2
+        middle_block_rate = 2 # ! Not mentioned in paper, but required
         exit_block_rates = (2, 4)
         atrous_rates = (12, 24, 36)
     else:
