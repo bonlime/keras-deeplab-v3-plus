@@ -10,7 +10,6 @@ from model import Deeplabv3
 WEIGHTS_DIR = 'weights'
 MODEL_DIR = 'models'
 OUTPUT_WEIGHT_FILENAME = 'deeplabv3_weights_tf_dim_ordering_tf_kernels.h5'
-OUTPUT_WEIGHT_FILENAME_NOTOP = 'deeplabv3_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 print('Instantiating an empty InceptionResNetV2 model...')
