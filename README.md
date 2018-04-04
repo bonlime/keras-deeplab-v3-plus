@@ -11,8 +11,7 @@ Segmentation results of original TF model. __Output Stride = 8__
 
 This result is obtained as an argmax applied to logits at exit layer   
 Segmentation results of this repo model with loaded weights and __OS = 8__  
-Results are simular to the TF model  
-__Upd.__ https://github.com/bonlime/keras-deeplab-v3-plus/issues/3 it looks like you can get better result by using proper TF version
+Results are identical to the TF model  
 <p align="center">
     <img src="imgs/my_seg_results1_OS8.png" width=600></br>
     <img src="imgs/my_seg_results2_OS8.png" width=600></br>
@@ -20,11 +19,12 @@ __Upd.__ https://github.com/bonlime/keras-deeplab-v3-plus/issues/3 it looks like
 </p>
 
  
-Segmentation results of this repo model with loaded weights and __OS = 16__  
+Segmentation results of this repo model with loaded weights and __OS = 16__ 
+Results are still good
 <p align="center">
-    <img src="imgs/my_seg_results1.png" width=600></br>
-    <img src="imgs/my_seg_results2.png" width=600></br>
-    <img src="imgs/my_seg_results3.png" width=600></br>
+    <img src="imgs/my_seg_results1_OS16.png" width=600></br>
+    <img src="imgs/my_seg_results2_OS16.png" width=600></br>
+    <img src="imgs/my_seg_results3_OS16.png" width=600></br>
 </p>
 
 
