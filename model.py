@@ -212,7 +212,7 @@ def Deeplabv3(input_shape, num_classes=21, last_activation=None, OS=16):
     else:
         entry_block3_stride = 2
         middle_block_rate = 1
-        exit_block_rates = (1, 1)
+        exit_block_rates = (1, 2)
         atrous_rates = (6, 12, 18)
 
     img_input = Input(input_shape)
