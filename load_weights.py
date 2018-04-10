@@ -12,7 +12,7 @@ MODEL_DIR = 'models'
 OUTPUT_WEIGHT_FILENAME = 'deeplabv3_weights_tf_dim_ordering_tf_kernels.h5'
 
 
-print('Instantiating an empty InceptionResNetV2 model...')
+print('Instantiating an empty Deeplabv3+ model...')
 model = Deeplabv3(input_shape=(512, 512, 3),num_classes = 21)
 
 WEIGHTS_DIR = 'weights/'
