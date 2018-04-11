@@ -29,9 +29,8 @@ Results are still good
 
 How to use this model with custom input shape and custom number of classes:  
 `from model import Deeplabv3`  
-`deeplab_model = Deeplabv3((512,512,3), num_classes=4, last_activation=True, OS=8)`  
-`deeplab_model.load_weights('deeplabv3_weights_tf_dim_ordering_tf_kernels.h5', by_name = True)`  
+`deeplab_model = Deeplabv3((512,512,3), num_classes=4, weighs = 'pascal_voc', OS=8)`   
 
-You can find deeplabv3_weights_tf_dim_ordering_tf_kernels.h5 file in releases
+After that you will get a usual Keras model which you can train using .fit and .fit_generator methods
 
 
