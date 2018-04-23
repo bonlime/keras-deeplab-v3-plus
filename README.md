@@ -29,7 +29,7 @@ Results are still good
 
 How to use this model with custom input shape and custom number of classes:  
 `from model import Deeplabv3`  
-`deeplab_model = Deeplabv3((512,512,3), num_classes=4, weighs = 'pascal_voc', OS=8)`   
+`deeplab_model = Deeplabv3((512,512,3), classes=4, weighs='pascal_voc', OS=8)`   
 
 After that you will get a usual Keras model which you can train using .fit and .fit_generator methods
 
