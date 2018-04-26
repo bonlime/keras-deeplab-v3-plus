@@ -63,11 +63,12 @@ class BilinearUpsampling(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
         if output_size:
-            self.upsample_size = conv_utils.normalize_tuple(
-                output_size, 2, 'size')
+            self.output_size = conv_utils.normalize_tuple(
+                output_size, 2, 'output_size')
             self.upsampling = None
         else:
-            self.upsampling = conv_utils.normalize_tuple(upsampling, 2, 'size')
+            self.output_size = None
+            self.upsampling = conv_utils.normalize_tuple(upsampling, 2, 'upsampling')
 
     def compute_output_shape(self, input_shape):
         if self.upsampling:
@@ -76,8 +77,8 @@ class BilinearUpsampling(Layer):
             width = self.upsampling[1] * \
                 input_shape[2] if input_shape[2] is not None else None
         else:
-            height = self.upsample_size[0]
-            width = self.upsample_size[1]
+            height = self.output_size[0]
+            width = self.output_size[1]
         return (input_shape[0],
                 height,
                 width,
@@ -89,12 +90,13 @@ class BilinearUpsampling(Layer):
                                                        inputs.shape[2] * self.upsampling[1]),
                                               align_corners=True)
         else:
-            return K.tf.image.resize_bilinear(inputs, (self.upsample_size[0],
-                                                       self.upsample_size[1]),
+            return K.tf.image.resize_bilinear(inputs, (self.output_size[0],
+                                                       self.output_size[1]),
                                               align_corners=True)
 
     def get_config(self):
-        config = {'size': self.upsampling,
+        config = {'upsampling':self.upsampling,
+                  'output_size': self.output_size,
                   'data_format': self.data_format}
         base_config = super(BilinearUpsampling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
