@@ -33,7 +33,7 @@ How to use this model with custom input shape and custom number of classes:
 
 After that you will get a usual Keras model which you can train using .fit and .fit_generator methods
 
-I'm using 
-Keras==2.1.5
-tensorflow-gpu==1.6.0
-CUDA==9.0
+I'm using   
+Keras==2.1.5  
+tensorflow-gpu==1.6.0  
+CUDA==9.0   
