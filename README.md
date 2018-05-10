@@ -61,6 +61,15 @@ Important notes:
 2. Xception backbone should be trained with OS=16, and only inferenced with OS=8
 3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder  
 4. If you want to train BN layers too, use batch size of at least 12 (16+ is even better)
+
+### How to load model
+In order to load model after using model.save() use this code:
+
+```
+from model import relu6, BilinearUpsampling
+deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6,'BilinearUpsampling':BilinearUpsampling })
+```
+
 ### Xception vs MobileNetv2
 There are 2 available backbones. Xception backbone is more accurate, but has 25 times more parameters than MobileNetv2.  For MobileNetv2 there are pretrained weights only for alpha==1., but you can initiate model with different values of alpha.
 
