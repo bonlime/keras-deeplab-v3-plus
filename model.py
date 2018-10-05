@@ -503,7 +503,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     else:
         inputs = img_input
 
-    model = Model(inputs, x, name='deeplabv3+')
+    model = Model(inputs, x, name='deeplabv3plus')
 
     # load weights
 
