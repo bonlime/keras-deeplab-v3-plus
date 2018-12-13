@@ -311,7 +311,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     """
 
-    if not (weights in {'pascal_voc', None}):
+    if not (weights in {'pascal_voc','ade_20k', None}):
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `pascal_voc` '
                          '(pre-trained on PASCAL VOC)')
@@ -488,7 +488,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                        depth_activation=True, epsilon=1e-5)
 
     # you can use it with arbitary number of classes
-    if classes == 21:
+    if classes in [21,151]:
         last_layer_name = 'logits_semantic'
     else:
         last_layer_name = 'custom_logits_semantic'
@@ -516,6 +516,17 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
             weights_path = get_file('deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5',
                                     WEIGHTS_PATH_MOBILE,
                                     cache_subdir='models')
+        model.load_weights(weights_path, by_name=True)
+    elif weights=='ade_20k':
+        if backbone == 'xception':
+# =============================================================================
+#             weights_path = get_file('deeplabv3_xception_ade_tf_dim_ordering_tf_kernels.h5',
+#                                     WEIGHTS_PATH_X,
+#                                     cache_subdir='models')
+# =============================================================================
+            weights_path='models/deeplabv3_xception_ade_tf_dim_ordering_tf_kernels.h5'
+        else:
+            raise ValueError('Backbone must be xception for ADE20K weights')
         model.load_weights(weights_path, by_name=True)
     return model
 
