@@ -311,7 +311,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     """
 
-    if not (weights in {'pascal_voc', None}):
+    if not (weights in {'pascal_voc', 'cityscapes', None}):
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `pascal_voc` '
                          '(pre-trained on PASCAL VOC)')
@@ -517,6 +517,10 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                                     WEIGHTS_PATH_MOBILE,
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
+    elif weights == 'cityscapes':
+        if backbone == 'xception':
+            weights_path = '/home/raul/.keras/models/deeplabv3_xception_tf_dim_ordering_tf_kernels_cityscapes.h5'
+            model.load_weights(weights_path, by_name=True)
     return model
 
 
