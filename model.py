@@ -314,7 +314,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     if not (weights in {'pascal_voc', 'cityscapes', None}):
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `pascal_voc` '
+                         '`None` (random initialization), `pascal_voc`, or `cityscapes` '
                          '(pre-trained on PASCAL VOC)')
 
     if K.backend() != 'tensorflow':
