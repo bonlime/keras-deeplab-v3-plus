@@ -50,7 +50,9 @@ plt.imshow(labels[:-pad_x])
 ### How to use this model with custom input shape and custom number of classes
 ```
 from model import Deeplabv3
-deeplab_model = Deeplabv3(input_shape=(384,384,3), classes=4)  
+deeplab_model = Deeplabv3(input_shape=(384, 384, 3), classes=4)  
+#or you can use None as shape
+deeplab_model = Deeplabv3(input_shape=(None, None, 3), classes=4)
 ```
 After that you will get a usual Keras model which you can train using `.fit` and `.fit_generator` methods.
 
@@ -60,22 +62,20 @@ You can find a lot of useful parameters in the [original repository](https://git
 
 Important notes:
 1. This model don't have default weight decay, you need to add it yourself;
-2. Xception backbone should be trained with `OS=16`, and only inferenced with `OS=8`;
-3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder;
-4. If you want to train BN layers too, use batch size of at least 12 (16+ is even better).
+2. Xception backbone should be trained with `OS=16`, and only inferenced with `OS=8` due to huge memory use with `OS=8`.
+3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder but
+Right now (march 2019) there is a problem with finetuning Keras models with BN. You can read more about it [here](https://github.com/keras-team/keras/pull/9965).
 
 #### Known issues
+This model can be retrained [check this notebook](https://github.com/Golbstein/Keras-segmentation-deeplab-v3.1/blob/master/segmentation.ipynb) but finetuning it is really tricky and difficult due to the confusion between `training` and `trainable` in Keras. See [this issue](https://github.com/bonlime/keras-deeplab-v3-plus/issues/56) for a discussion around this and possible alternatives. 
 
-As far as we know, this model can't be fine tuned as is and is only usable for inference. See [this issue](https://github.com/bonlime/keras-deeplab-v3-plus/issues/56) for a discussion around this and possible alternatives.
-
-Don't hesitate to discuss or submit a pull request if you've got ideas on how to fix this model.
 
 ### How to load model
 In order to load model after using model.save() use this code:
 
 ```
-from model import relu6, BilinearUpsampling
-deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6,'BilinearUpsampling':BilinearUpsampling })
+from model import relu6
+deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6})
 ```
 
 ### Xception vs MobileNetv2
@@ -84,7 +84,7 @@ There are 2 available backbones. Xception backbone is more accurate, but has 25 
 For MobileNetv2 there are pretrained weights only for `alpha=1`. However, you can initiate model with different values of alpha.
 
 
-### Requirement (it may work with lower versions too, but not guaranteed) 
-Keras==2.1.5  
-tensorflow-gpu==1.6.0  
+### Requirement
+This repo uses TF Keras, so you only need TF 2.0+ installed  
+tensorflow-gpu==2.0.0a0  
 CUDA==9.0   
