@@ -2,3 +2,4 @@ models/
 weights/
 __pycache__
 test.ipynb
+.ipynb_checkpoints

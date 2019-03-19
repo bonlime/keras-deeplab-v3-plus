@@ -5,10 +5,6 @@ This model is based on TF repo:
 https://github.com/tensorflow/models/tree/master/research/deeplab
 On Pascal VOC, original model gets to 84.56% mIOU
 
-Now this model is only available for the TensorFlow backend,
-due to its reliance on `SeparableConvolution` layers, but Theano will add
-this layer soon.
-
 MobileNetv2 backbone is based on this repo:
 https://github.com/JonathanCMitchell/mobilenet_v2_keras
 
@@ -226,18 +222,16 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
-    on PASCAL VOC. This model is available for TensorFlow only,
-    and can only be used with inputs following the TensorFlow
-    data format `(width, height, channels)`.
+    on PASCAL VOC or Cityscapes. This model is available for TensorFlow only.
     # Arguments
         weights: one of 'pascal_voc' (pre-trained on pascal voc), 
             'cityscapes' (pre-trained on cityscape) or None (random initialization)
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: shape of input image. format HxWxC
-            PASCAL VOC model was trained on (512,512,3) images
-        classes: number of desired classes. If classes != 21,
-            last layer is initialized randomly
+            PASCAL VOC model was trained on (512,512,3) images. None is allowed as shape/width
+        classes: number of desired classes. PASCAL VOC has 21 classes, Cityscapes has 19 classes.
+            If number of classes not aligned with the weights used, last layer is initialized randomly
         backbone: backbone to use. one of {'xception','mobilenetv2'}
         activation: optional activation to add to the top of the network. 
             One of 'softmax', 'sigmoid' or None
@@ -436,7 +430,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                        depth_activation=True, epsilon=1e-5)
 
     # you can use it with arbitary number of classes
-    if classes == 21:
+    if (weights == 'pascal_voc' and classes == 21) or (weights == 'cityscapes' and classes == 19):
         last_layer_name = 'logits_semantic'
     else:
         last_layer_name = 'custom_logits_semantic'
