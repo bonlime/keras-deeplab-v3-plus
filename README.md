@@ -27,7 +27,7 @@ Results are still good
 </p>
 
 ### How to get labels
-Model will return tensor of shape (batch_size,height,width,classes). To obtain labels, you need to apply argmax to logits at exit layer. Example of predicting on image1.jpg:  
+Model will return tensor of shape `(batch_size, height, width, num_classes)`. To obtain labels, you need to apply argmax to logits at exit layer. Example of predicting on `image1.jpg`:  
 
 ```
 from matplotlib import pyplot as plt
@@ -47,20 +47,28 @@ labels = np.argmax(res.squeeze(),-1)
 plt.imshow(labels[:-pad_x])
 ```
 
-### How to use this model with custom input shape and custom number of classes:  
+### How to use this model with custom input shape and custom number of classes
 ```
 from model import Deeplabv3
 deeplab_model = Deeplabv3(input_shape=(384,384,3), classes=4)  
 ```
-After that you will get a usual Keras model which you can train using .fit and .fit_generator methods  
+After that you will get a usual Keras model which you can train using `.fit` and `.fit_generator` methods.
 
-### How to train this model:
-You can find a lot of usefull parameters in original repo: https://github.com/tensorflow/models/blob/master/research/deeplab/train.py  
+### How to train this model
+
+You can find a lot of useful parameters in the [original repository](https://github.com/tensorflow/models/blob/master/research/deeplab/train.py).
+
 Important notes:
-1. This model don't have default weight decay, you need to add it yourself
-2. Xception backbone should be trained with OS=16, and only inferenced with OS=8
-3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder  
-4. If you want to train BN layers too, use batch size of at least 12 (16+ is even better)
+1. This model don't have default weight decay, you need to add it yourself;
+2. Xception backbone should be trained with `OS=16`, and only inferenced with `OS=8`;
+3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder;
+4. If you want to train BN layers too, use batch size of at least 12 (16+ is even better).
+
+#### Known issues
+
+As far as we know, this model can't be fine tuned as is and is only usable for inference. See [this issue](https://github.com/bonlime/keras-deeplab-v3-plus/issues/56) for a discussion around this and possible alternatives.
+
+Don't hesitate to discuss or submit a pull request if you've got ideas on how to fix this model.
 
 ### How to load model
 In order to load model after using model.save() use this code:
@@ -71,7 +79,9 @@ deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6,'BilinearU
 ```
 
 ### Xception vs MobileNetv2
-There are 2 available backbones. Xception backbone is more accurate, but has 25 times more parameters than MobileNetv2.  For MobileNetv2 there are pretrained weights only for alpha==1., but you can initiate model with different values of alpha.
+There are 2 available backbones. Xception backbone is more accurate, but has 25 times more parameters than MobileNetv2. 
+
+For MobileNetv2 there are pretrained weights only for `alpha=1`. However, you can initiate model with different values of alpha.
 
 
 ### Requirement (it may work with lower versions too, but not guaranteed) 
