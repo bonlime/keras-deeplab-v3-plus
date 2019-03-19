@@ -49,7 +49,8 @@ from keras.utils.data_utils import get_file
 
 WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
 WEIGHTS_PATH_MOBILE = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5"
-
+WEIGHTS_PATH_X_CS = "https://github.com/rdiazgar/keras-deeplab-v3-plus/releases/download/1.2/deeplabv3_xception_tf_dim_ordering_tf_kernels_cityscapes.h5"
+WEIGHTS_PATH_MOBILE_CS = "https://github.com/rdiazgar/keras-deeplab-v3-plus/releases/download/1.2/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels_cityscapes.h5"
 
 class BilinearUpsampling(Layer):
     """Just a simple bilinear upsampling layer. Works only with TF.
@@ -62,7 +63,7 @@ class BilinearUpsampling(Layer):
 
         super(BilinearUpsampling, self).__init__(**kwargs)
 
-        self.data_format = K.normalize_data_format(data_format)
+        self.data_format = K.image_data_format()
         self.input_spec = InputSpec(ndim=4)
         if output_size:
             self.output_size = conv_utils.normalize_tuple(
@@ -311,9 +312,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     """
 
-    if not (weights in {'pascal_voc', None}):
+    if not (weights in {'pascal_voc', 'cityscapes', None}):
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `pascal_voc` '
+                         '`None` (random initialization), `pascal_voc`, or `cityscapes` '
                          '(pre-trained on PASCAL VOC)')
 
     if K.backend() != 'tensorflow':
@@ -515,6 +516,16 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         else:
             weights_path = get_file('deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5',
                                     WEIGHTS_PATH_MOBILE,
+                                    cache_subdir='models')
+        model.load_weights(weights_path, by_name=True)
+    elif weights == 'cityscapes':
+        if backbone == 'xception':
+            weights_path = get_file('deeplabv3_xception_tf_dim_ordering_tf_kernels_cityscapes.h5',
+                                    WEIGHTS_PATH_X_CS,
+                                    cache_subdir='models')
+        else:
+            weights_path = get_file('deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels_cityscapes.h5',
+                                    WEIGHTS_PATH_MOBILE_CS,
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
     return model
