@@ -414,15 +414,14 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     x = BatchNormalization(name='concat_projection_BN', epsilon=1e-5)(x)
     x = Activation('relu')(x)
     x = Dropout(0.1)(x)
-
     # DeepLab v.3+ decoder
 
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
         x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                tf.shape(x)[1:3]*tf.constant((OS//4, OS//4)),
-                                                method='bilinear',align_corners=True))(x) 
+                                                x.shape[1:3]*tf.constant(OS//4),
+                                                method='bilinear', align_corners=True))(x) 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
