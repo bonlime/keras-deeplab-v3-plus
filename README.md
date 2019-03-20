@@ -85,6 +85,16 @@ For MobileNetv2 there are pretrained weights only for `alpha=1`. However, you ca
 
 
 ### Requirement
-This repo uses TF Keras, so you only need TF 2.0+ installed  
+The latest vesrion  of this repo uses TF Keras, so you only need TF 2.0+ installed  
 tensorflow-gpu==2.0.0a0  
 CUDA==9.0   
+
+-------- 
+If you want to use older version, use following commands:
+```
+git clone https://github.com/bonlime/keras-deeplab-v3-plus/
+cd keras-deeplab-v3-plus/
+git checkout 714a6b7d1a069a07547c5c08282f1a706db92e20
+```
+tensorflow-gpu==1.13  
+Keras==2.2.4  
