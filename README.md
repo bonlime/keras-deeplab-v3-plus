@@ -58,16 +58,15 @@ After that you will get a usual Keras model which you can train using `.fit` and
 
 ### How to train this model
 
-You can find a lot of useful parameters in the [original repository](https://github.com/tensorflow/models/blob/master/research/deeplab/train.py).
+Useful parameters can be found in the [original repository](https://github.com/tensorflow/models/blob/master/research/deeplab/train.py).
 
 Important notes:
-1. This model don't have default weight decay, you need to add it yourself;
-2. Xception backbone should be trained with `OS=16`, and only inferenced with `OS=8` due to huge memory use with `OS=8`.
-3. You can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder but
-Right now (march 2019) there is a problem with finetuning Keras models with BN. You can read more about it [here](https://github.com/keras-team/keras/pull/9965).
+1. This model doesn’t provide default weight decay, user needs to add it themselves.
+2. Due to huge memory use with `OS=8`, Xception backbone should be trained with `OS=16` and only inferenced with `OS=8`.
+3. User can freeze feature extractor for Xception backbone (first 356 layers) and only fine-tune decoder. Right now (March 2019), there is a problem with finetuning Keras models with BN. You can read more about it [here](https://github.com/keras-team/keras/pull/9965).
 
 #### Known issues
-This model can be retrained [check this notebook](https://github.com/Golbstein/Keras-segmentation-deeplab-v3.1/blob/master/segmentation.ipynb) but finetuning it is really tricky and difficult due to the confusion between `training` and `trainable` in Keras. See [this issue](https://github.com/bonlime/keras-deeplab-v3-plus/issues/56) for a discussion around this and possible alternatives. 
+This model can be retrained [check this notebook](https://github.com/Golbstein/Keras-segmentation-deeplab-v3.1/blob/master/segmentation.ipynb). Finetuning is tricky and difficult because of the confusion between `training` and `trainable` in Keras. See [this issue](https://github.com/bonlime/keras-deeplab-v3-plus/issues/56) for a discussion and possible alternatives. 
 
 
 ### How to load model
