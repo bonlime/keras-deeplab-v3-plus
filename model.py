@@ -217,7 +217,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
     return x
 
 
-def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2', OS=16, alpha=1., activation=None):
+def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2', OS=16, alpha=1., activation=None, custom_logits_semantic=False):
     """ Instantiates the Deeplabv3+ architecture
 
     Optionally loads weights pre-trained
@@ -428,11 +428,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         x = SepConv_BN(x, 256, 'decoder_conv1',
                        depth_activation=True, epsilon=1e-5)
 
-    # you can use it with arbitary number of classes
-    if (weights == 'pascal_voc' and classes == 21) or (weights == 'cityscapes' and classes == 19):
-        last_layer_name = 'logits_semantic'
-    else:
+    # Modify the name of the last layer to force random reinitialization
+    if custom_logits_semantic:
         last_layer_name = 'custom_logits_semantic'
+    else:
+        last_layer_name = 'logits_semantic'
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
     x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
