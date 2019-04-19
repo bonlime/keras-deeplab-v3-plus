@@ -28,6 +28,7 @@ Results are still good
 
 ### How to get labels
 Model will return tensor of shape `(batch_size, height, width, num_classes)`. To obtain labels, you need to apply argmax to logits at exit layer. Example of predicting on `image1.jpg`:  
+For a more complete example see run_model.py
 
 ```
 from matplotlib import pyplot as plt
