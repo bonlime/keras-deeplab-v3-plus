@@ -29,7 +29,7 @@ Results are still good
 ### How to get labels
 Model will return tensor of shape `(batch_size, height, width, num_classes)`. To obtain labels, you need to apply argmax to logits at exit layer. Example of predicting on `image1.jpg`:  
 
-```
+```python
 from matplotlib import pyplot as plt
 import cv2 # used for resize. if you dont have it, use anything else
 import numpy as np
@@ -48,7 +48,7 @@ plt.imshow(labels[:-pad_x])
 ```
 
 ### How to use this model with custom input shape and custom number of classes
-```
+```python
 from model import Deeplabv3
 deeplab_model = Deeplabv3(input_shape=(384, 384, 3), classes=4)  
 #or you can use None as shape
@@ -72,7 +72,7 @@ This model can be retrained [check this notebook](https://github.com/Golbstein/K
 ### How to load model
 In order to load model after using model.save() use this code:
 
-```
+```python
 from model import relu6
 deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6})
 ```
@@ -90,7 +90,7 @@ CUDA==9.0
 
 -------- 
 If you want to use older version, use following commands:
-```
+```bash
 git clone https://github.com/bonlime/keras-deeplab-v3-plus/
 cd keras-deeplab-v3-plus/
 git checkout 714a6b7d1a069a07547c5c08282f1a706db92e20
