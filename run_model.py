@@ -7,8 +7,8 @@ from model import Deeplabv3
 
 # default normalization matches MobileNetV2
 def generate_image_labels(image, trained_image_width=512, mean_subtraction_value=127.5):
-    """# Generates labels using most basic setup.  Supports various image sizes.  Returns image labels in same format
-     as original image."""
+    """# Generates labels using most basic setup.  Supports various image sizes.  Returns image labels in same
+    dimensions as original image."""
 
     # resize to max dimension of images from training dataset
     w, h, _ = image.shape
