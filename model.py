@@ -5,8 +5,6 @@ This model is based on TF repo:
 https://github.com/tensorflow/models/tree/master/research/deeplab
 On Pascal VOC, original model gets to 84.56% mIOU
 
-This specific code was taken from https://github.com/bonlime/keras-deeplab-v3-plus
-
 MobileNetv2 backbone is based on this repo:
 https://github.com/JonathanCMitchell/mobilenet_v2_keras
 
