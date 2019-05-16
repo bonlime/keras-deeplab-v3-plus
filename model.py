@@ -38,6 +38,8 @@ from tensorflow.python.keras.layers import ZeroPadding2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
+from tensorflow.python.keras.activations import relu
+
 
 WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
 WEIGHTS_PATH_MOBILE = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5"
@@ -157,7 +159,7 @@ def _xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
 
 
 def relu6(x):
-    return tf.python.keras.activations.relu(x, max_value=6)
+    return relu(x, max_value=6)
 
 
 def _make_divisible(v, divisor, min_value=None):
