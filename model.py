@@ -38,8 +38,9 @@ from tensorflow.python.keras.layers import ZeroPadding2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
+from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.activations import relu
-
+from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
 
 WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
 WEIGHTS_PATH_MOBILE = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5"
@@ -371,15 +372,17 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # Image Feature branch
     shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
-    b4 = tf.expand_dims(tf.expand_dims(b4, 1), 1)  # from (b_size, channels)->(b_size, 1, 1, channels)
+    # from (b_size, channels)->(b_size, 1, 1, channels)
+    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
+    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, shape_before[1:3],
+    size_before = tf.keras.backend.int_shape(x)
+    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
                                                     method='bilinear', align_corners=True))(b4)
-
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -412,9 +415,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
+        size_before2 = tf.keras.backend.int_shape(x)
         x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        x.shape[1:3] * tf.constant(OS // 4),
+                                                        size_before2[1:3] * tf.constant(OS // 4),
                                                         method='bilinear', align_corners=True))(x)
+
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
@@ -433,8 +438,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         last_layer_name = 'custom_logits_semantic'
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
+    size_before3 = tf.keras.backend.int_shape(img_input)
     x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    tf.shape(img_input)[1:3],
+                                                    size_before3[1:3],
                                                     method='bilinear', align_corners=True))(x)
 
     # Ensure that the model takes into account
@@ -472,3 +478,12 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
     return model
+
+def preprocess_input(x):
+    """Preprocesses a numpy array encoding a batch of images.
+    # Arguments
+        x: a 4D numpy array consists of RGB values within [0, 255].
+    # Returns
+        Input array scaled to [-1.,1.]
+    """
+    return preprocess_input(x, mode='tf')
