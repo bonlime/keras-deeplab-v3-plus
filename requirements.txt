@@ -1,0 +1,6 @@
+keras==2.2.4
+tensorflow==2.0.0a0
+Pillow==6.0.0
+numpy
+matplotlib
+tqdm
