@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.keras.models import Model
@@ -36,15 +35,12 @@ from tensorflow.python.keras.layers import BatchNormalization
 from tensorflow.python.keras.layers import Conv2D
 from tensorflow.python.keras.layers import DepthwiseConv2D
 from tensorflow.python.keras.layers import ZeroPadding2D
-from tensorflow.python.keras.layers import AveragePooling2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
-from tensorflow.python.keras.layers import Layer
-from tensorflow.python.keras.layers import InputSpec
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
-from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
-from tensorflow.python.keras.utils import conv_utils
 from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.activations import relu
+from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
 
 WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
 WEIGHTS_PATH_MOBILE = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels.h5"
@@ -164,7 +160,7 @@ def _xception_block(inputs, depth_list, prefix, skip_connection_type, stride,
 
 
 def relu6(x):
-    return tf.keras.activations.relu(x, max_value=6)
+    return relu(x, max_value=6)
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -376,17 +372,14 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # Image Feature branch
     shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
+    # from (b_size, channels)->(b_size, 1, 1, channels)
     b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
     b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
-
-    # b4 = K.expand_dims(b4, 1)
-    # b4 = K.expand_dims(b4, 1)  # from (b_size, channels)->(b_size, 1, 1, channels)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
-
     size_before = tf.keras.backend.int_shape(x)
     b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
                                                     method='bilinear', align_corners=True))(b4)
@@ -486,13 +479,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         model.load_weights(weights_path, by_name=True)
     return model
 
-
-
-# def preprocess_input(x):
-#     """Preprocesses a numpy array encoding a batch of images.
-#     # Arguments
-#         x: a 4D numpy array consists of RGB values within [0, 255].
-#     # Returns
-#         Input array scaled to [-1.,1.]
-#     """
-#     return preprocess_input(x, mode='tf')
+def preprocess_input(x):
+    """Preprocesses a numpy array encoding a batch of images.
+    # Arguments
+        x: a 4D numpy array consists of RGB values within [0, 255].
+    # Returns
+        Input array scaled to [-1.,1.]
+    """
+    return preprocess_input(x, mode='tf')
