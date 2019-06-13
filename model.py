@@ -174,7 +174,7 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, skip_connection, rate=1):
-    in_channels = inputs.shape[-1]  # inputs._keras_shape[-1]
+    in_channels = inputs.shape.as_list()[-1]  # inputs._keras_shape[-1]
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
@@ -381,8 +381,8 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = tf.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
-                                                    method='bilinear', align_corners=True))(b4)
+    b4 = Lambda(lambda x: tf.image.resize(x, size_before[1:3],
+                                          align_corners=True))(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -416,9 +416,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         # Feature projection
         # x4 (x2) block
         size_before2 = tf.keras.backend.int_shape(x)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        size_before2[1:3] * tf.constant(OS // 4),
-                                                        method='bilinear', align_corners=True))(x)
+        x = Lambda(lambda xx: tf.image.resize(xx,
+                                              size_before2[1:3] * tf.constant(OS // 4),
+                                              align_corners=True))(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
@@ -439,9 +439,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
     size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    size_before3[1:3],
-                                                    method='bilinear', align_corners=True))(x)
+    x = Lambda(lambda xx: tf.image.resize(xx,
+                                          size_before3[1:3],
+                                          align_corners=True))(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
