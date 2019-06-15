@@ -82,7 +82,8 @@ This code is also available in generate_labels.py
 
 ### Running this model as a CLI
 -----
-This repo contains a runnable CLI to allow users to test the results.  
+This repo contains a runnable CLI to allow users to test the results:
+  
 ```pip install requirements_cli.txt```
 
 ```python run_as_cli.py imgs/image1.jpg```
