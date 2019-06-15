@@ -109,9 +109,15 @@ For MobileNetv2 there are pretrained weights only for `alpha=1`. However, you ca
 
 
 ### Requirement
-The latest vesrion  of this repo uses TF Keras, so you only need TF 2.0+ installed  
-tensorflow-gpu==2.0.0a0  
-CUDA==9.0   
+The latest version of this repo uses TF Keras, so you only need TF 2.0+ installed:  
+tensorflow==2.0.0-beta1
+
+or, with GPU/CUDA support:
+
+tensorflow-gpu==2.0.0-beta1
+CUDA==10.0   
+
+Please see requirements.txt for the minimum requirements to run the example code in this README
 
 -------- 
 If you want to use older version, use following commands:

@@ -479,6 +479,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         model.load_weights(weights_path, by_name=True)
     return model
 
+
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
     # Arguments
