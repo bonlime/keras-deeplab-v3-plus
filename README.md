@@ -120,7 +120,7 @@ CUDA==10.0
 Please see requirements.txt for the minimum requirements to run the example code in this README
 
 -------- 
-If you want to use older version, use following commands:
+If you want to use the older version of Tensorflow, use following commands:
 ```bash
 git clone https://github.com/bonlime/keras-deeplab-v3-plus/
 cd keras-deeplab-v3-plus/
