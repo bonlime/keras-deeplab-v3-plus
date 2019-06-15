@@ -84,6 +84,7 @@ This code is also available in generate_labels.py
 -----
 This repo contains a runnable CLI to allow users to test the results.  
 ```pip install requirements_cli.txt```
+
 ```python run_as_cli.py imgs/image1.jpg```
    
 The labels will be displayed in a pop-up window.
