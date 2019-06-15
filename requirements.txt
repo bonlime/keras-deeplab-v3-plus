@@ -1,4 +1,4 @@
-# Requirements to run the README
+# Requirements to run the basic README example
 
 tensorflow==2.0.0-beta1
 Pillow==6.0.0

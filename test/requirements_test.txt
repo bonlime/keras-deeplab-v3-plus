@@ -1,0 +1,3 @@
+# Requirements to run the tests, in addition to the requirements to run the README example
+
+pytest

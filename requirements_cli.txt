@@ -1,0 +1,4 @@
+# Additional requirements to run the example CLI
+
+-r requirements.txt
+click
