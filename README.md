@@ -115,7 +115,7 @@ tensorflow==2.0.0-beta1
 or, with GPU/CUDA support:
 
 tensorflow-gpu==2.0.0-beta1
-CUDA==10.0   
+CUDA==10.1   
 
 Please see requirements.txt for the minimum requirements to run the example code in this README
 
