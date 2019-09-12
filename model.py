@@ -417,7 +417,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         # x4 (x2) block
         size_before2 = tf.keras.backend.int_shape(x)
         x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        size_before2[1:3] * tf.constant(OS // 4),
+                                                        skip1.shape[1:3],
                                                         method='bilinear', align_corners=True))(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
