@@ -182,7 +182,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
     if block_id:
         # Expand
 
-        x = Conv2D(expansion * in_channels, kernel_size=1, padding='same',
+        x = Conv2D(int(expansion * in_channels), kernel_size=1, padding='same',
                    use_bias=False, activation=None,
                    name=prefix + 'expand')(x)
         x = BatchNormalization(epsilon=1e-3, momentum=0.999,
