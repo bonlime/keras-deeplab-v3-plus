@@ -114,7 +114,7 @@ tensorflow-gpu==2.0.0a0
 CUDA==9.0   
 
 -------- 
-If you want to use older version, use following commands:
+*If you want to use older version, use following commands:*
 ```bash
 git clone https://github.com/bonlime/keras-deeplab-v3-plus/
 cd keras-deeplab-v3-plus/
