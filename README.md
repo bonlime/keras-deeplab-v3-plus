@@ -99,7 +99,7 @@ In order to load model after using model.save() use this code:
 
 ```python
 from model import relu6
-deeplab_model = load_model('example.h5',custom_objects={'relu6':relu6})
+deeplab_model = load_model('example.h5')
 ```
 
 ### Xception vs MobileNetv2
