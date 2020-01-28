@@ -1,4 +1,5 @@
-# Keras implementation of Deeplabv3+
+# Keras implementation of Deeplabv3+  
+**This repo is not longer maintained. I won't respond to issues but will merge PR**  
 DeepLab is a state-of-art deep learning model for semantic image segmentation.  
 
 Model is based on the original TF frozen graph. It is possible to load pretrained weights into this model. Weights are directly imported from original TF checkpoint.  
