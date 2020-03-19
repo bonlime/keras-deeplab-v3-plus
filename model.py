@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """ Deeplabv3+ model for Keras.
 This model is based on TF repo:
 https://github.com/tensorflow/models/tree/master/research/deeplab
