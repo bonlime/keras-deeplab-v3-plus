@@ -19,8 +19,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import layers
 from tensorflow.python.keras.layers import Input
@@ -37,6 +35,7 @@ from tensorflow.python.keras.layers import GlobalAveragePooling2D
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.activations import relu
 from tensorflow.python.keras.applications.imagenet_utils import preprocess_input
 
 WEIGHTS_PATH_X = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.1/deeplabv3_xception_tf_dim_ordering_tf_kernels.h5"
@@ -70,17 +69,17 @@ def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activa
         depth_padding = 'valid'
 
     if not depth_activation:
-        x = Activation(tf.nn.relu)(x)
+        x = Activation('relu')(x)
     x = DepthwiseConv2D((kernel_size, kernel_size), strides=(stride, stride), dilation_rate=(rate, rate),
                         padding=depth_padding, use_bias=False, name=prefix + '_depthwise')(x)
     x = BatchNormalization(name=prefix + '_depthwise_BN', epsilon=epsilon)(x)
     if depth_activation:
-        x = Activation(tf.nn.relu)(x)
+        x = Activation('relu')(x)
     x = Conv2D(filters, (1, 1), padding='same',
                use_bias=False, name=prefix + '_pointwise')(x)
     x = BatchNormalization(name=prefix + '_pointwise_BN', epsilon=epsilon)(x)
     if depth_activation:
-        x = Activation(tf.nn.relu)(x)
+        x = Activation('relu')(x)
 
     return x
 
@@ -180,7 +179,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
                    name=prefix + 'expand')(x)
         x = BatchNormalization(epsilon=1e-3, momentum=0.999,
                                name=prefix + 'expand_BN')(x)
-        x = Activation(tf.nn.relu6, name=prefix + 'expand_relu')(x)
+        x = Lambda(lambda x: Activation(relu(x, max_value=6),name=prefix + 'expand_relu'))(x)
     else:
         prefix = 'expanded_conv_'
     # Depthwise
@@ -190,8 +189,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
     x = BatchNormalization(epsilon=1e-3, momentum=0.999,
                            name=prefix + 'depthwise_BN')(x)
 
-    x = Activation(tf.nn.relu6, name=prefix + 'depthwise_relu')(x)
-
+    x = Lambda(lambda x: Activation(relu(x, max_value=6), name=prefix + 'depthwise_relu'))(x)
     # Project
     x = Conv2D(pointwise_filters,
                kernel_size=1, padding='same', use_bias=False, activation=None,
@@ -273,11 +271,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         x = Conv2D(32, (3, 3), strides=(2, 2),
                    name='entry_flow_conv1_1', use_bias=False, padding='same')(img_input)
         x = BatchNormalization(name='entry_flow_conv1_1_BN')(x)
-        x = Activation(tf.nn.relu)(x)
+        x = Activation('relu')(x)
 
         x = _conv2d_same(x, 64, 'entry_flow_conv1_2', kernel_size=3, stride=1)
         x = BatchNormalization(name='entry_flow_conv1_2_BN')(x)
-        x = Activation(tf.nn.relu)(x)
+        x = Activation('relu')(x)
 
         x = _xception_block(x, [128, 128, 128], 'entry_flow_block1',
                             skip_connection_type='conv', stride=2,
@@ -310,7 +308,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                    use_bias=False, name='Conv')(img_input)
         x = BatchNormalization(
             epsilon=1e-3, momentum=0.999, name='Conv_BN')(x)
-        x = Activation(tf.nn.relu6, name='Conv_Relu6')(x)
+        x = Lambda(lambda x: Activation(relu(x, max_value=6), name='Conv_Relu6'))(x)
 
         x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
                                 expansion=1, block_id=0, skip_connection=False)
@@ -359,7 +357,6 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # branching for Atrous Spatial Pyramid Pooling
 
     # Image Feature branch
-    shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
     b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
@@ -367,15 +364,15 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
-    b4 = Activation(tf.nn.relu)(b4)
+    b4 = Activation('relu')(b4)
     # upsample. have to use compat because of the option align_corners
-    size_before = tf.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
-                                                    method='bilinear', align_corners=True))(b4)
+    size_before = K.int_shape(x)
+    b4 = Lambda(lambda x: K.resize_images(x, width_factor=size_before[1], height_factor=size_before[2],
+                                          interpolation='bilinear',data_format='channels_last'))(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
-    b0 = Activation(tf.nn.relu, name='aspp0_activation')(b0)
+    b0 = Activation('relu', name='aspp0_activation')(b0)
 
     # there are only 2 branches in mobilenetV2. not sure why
     if backbone == 'xception':
@@ -397,23 +394,20 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     x = Conv2D(256, (1, 1), padding='same',
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN', epsilon=1e-5)(x)
-    x = Activation(tf.nn.relu)(x)
+    x = Activation('relu')(x)
     x = Dropout(0.1)(x)
     # DeepLab v.3+ decoder
 
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_before2 = tf.keras.backend.int_shape(x)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        skip1.shape[1:3],
-                                                        method='bilinear', align_corners=True))(x)
-
+        x = Lambda(lambda x: K.resize_images(x, width_factor=OS//4, height_factor=OS//4,
+                                              interpolation='bilinear', data_format='channels_last'))(b4)
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
             name='feature_projection0_BN', epsilon=1e-5)(dec_skip1)
-        dec_skip1 = Activation(tf.nn.relu)(dec_skip1)
+        dec_skip1 = Activation('relu')(dec_skip1)
         x = Concatenate()([x, dec_skip1])
         x = SepConv_BN(x, 256, 'decoder_conv0',
                        depth_activation=True, epsilon=1e-5)
@@ -427,10 +421,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         last_layer_name = 'custom_logits_semantic'
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
-    size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    size_before3[1:3],
-                                                    method='bilinear', align_corners=True))(x)
+    size_before3 = K.int_shape(img_input)
+    current_size = K.int_shape(x)
+    x = Lambda(lambda x: K.resize_images(x, width_factor=size_before3[1]//current_size[1],
+                                         height_factor=size_before3[2]//current_size[2],
+                                         interpolation='bilinear', data_format='channels_last'))(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -440,9 +435,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         inputs = img_input
 
     if activation in {'softmax', 'sigmoid'}:
-        x = tf.keras.layers.Activation(activation)(x)
+        x = Activation(activation)(x)
 
-    model = Model(inputs, x, name='deeplabv3plus')
+    model = Model(inputs=inputs, outputs=x, name='deeplabv3plus')
 
     # load weights
 
