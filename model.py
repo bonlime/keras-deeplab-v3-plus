@@ -35,6 +35,7 @@ from tensorflow.python.keras.layers import Conv2D
 from tensorflow.python.keras.layers import DepthwiseConv2D
 from tensorflow.python.keras.layers import ZeroPadding2D
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
+from tensorflow.python.keras.layers import UpSampling2D
 from tensorflow.python.keras.utils.layer_utils import get_source_inputs
 from tensorflow.python.keras.utils.data_utils import get_file
 from tensorflow.python.keras import backend as K
@@ -370,7 +371,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     b4 = Activation('elu')(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = K.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize_bilinear(x, size_before[1:3],align_corners=True))(b4)
+    b4 = UpSampling2D(size=(size_before[1],size_before[2]),interpolation='bilinear')(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -403,9 +404,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_before2 = tf.keras.backend.int_shape(x)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize_bilinear(xx,
-                                                        skip1.shape[1:3], align_corners=True))(x)
+        size_in = K.int_shape(x)
+        size_out = K.int_shape(skip1)
+        x = UpSampling2D(size=(size_out[1]//size_in[1],size_out[2]//size_in[2]),interpolation='bilinear')(x)
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
@@ -424,9 +425,10 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         last_layer_name = 'custom_logits_semantic'
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
-    size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize_bilinear(xx,
-                                                    size_before3[1:3], align_corners=True))(x)
+
+    size_in = K.int_shape(x)
+    size_out = K.int_shape(img_input)
+    x = UpSampling2D(size=(size_out[1] // size_in[1], size_out[2] // size_in[2]), interpolation='bilinear')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
