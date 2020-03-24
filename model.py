@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow.compat.v1 as tf
 
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import layers
@@ -181,7 +182,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
                    name=prefix + 'expand')(x)
         x = BatchNormalization(epsilon=1e-3, momentum=0.999,
                                name=prefix + 'expand_BN')(x)
-        x = Lambda(lambda x: Activation(relu(x, max_value=6),name=prefix + 'expand_relu'))(x)
+        x = Lambda(lambda x: Activation(relu(x, max_value=6), name=prefix + 'expand_relu'))(x)
     else:
         prefix = 'expanded_conv_'
     # Depthwise
@@ -369,7 +370,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     b4 = Activation('elu')(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = K.int_shape(x)
-    b4 = UpSampling2D(size=(size_before[1],size_before[2]),interpolation='bilinear')(b4)
+    b4 = Lambda(lambda x: tf.image.resize(x, size_before[1:3],
+                                          method='bilinear', align_corners=True))(b4)
+    # b4 = UpSampling2D(size=(size_before[1],size_before[2]),interpolation='bilinear')(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -398,13 +401,14 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     x = Activation('elu')(x)
     # x = Dropout(0.1)(x)
     # DeepLab v.3+ decoder
-    
+
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_in = K.int_shape(x)
-        size_out = K.int_shape(skip1)
-        x = UpSampling2D(size=(size_out[1]//size_in[1],size_out[2]//size_in[2]),interpolation='bilinear')(x)
+        # size_in = K.int_shape(x)
+        # size_out = K.int_shape(skip1)
+        # x = UpSampling2D(size=(size_out[1]//size_in[1],size_out[2]//size_in[2]),interpolation='bilinear')(x)
+        x = Lambda(lambda xx: tf.image.resize(xx, skip1.shape[1:3], method='bilinear', align_corners=True))(x)
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
@@ -424,10 +428,11 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
 
-    size_in = K.int_shape(x)
-    size_out = K.int_shape(img_input)
-    x = UpSampling2D(size=(size_out[1] // size_in[1], size_out[2] // size_in[2]), interpolation='bilinear')(x)
-
+    # size_in = K.int_shape(x)
+    # size_out = K.int_shape(img_input)
+    # x = UpSampling2D(size=(size_out[1] // size_in[1], size_out[2] // size_in[2]), interpolation='bilinear')(x)
+    size_before3 = K.int_shape(img_input)
+    x = Lambda(lambda xx: tf.image.resize(xx, size_before3[1:3], method='bilinear', align_corners=True))(x)
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
@@ -463,6 +468,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
     return model
+
 
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
