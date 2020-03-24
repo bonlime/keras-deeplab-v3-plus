@@ -399,7 +399,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                use_bias=False, name='concat_projection')(x)
     x = BatchNormalization(name='concat_projection_BN', epsilon=1e-5)(x)
     x = Activation('elu')(x)
-    # x = Dropout(0.1)(x)
+    x = Dropout(0.1)(x)
     # DeepLab v.3+ decoder
 
     if backbone == 'xception':
