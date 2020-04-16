@@ -20,9 +20,11 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
-policy = mixed_precision.Policy('mixed_float16')
-mixed_precision.set_policy(policy)
+version_split = tf.__version__.split('.')
+if version_split[0] == '2' and int(version_split[1]) > 1:
+    from tensorflow.keras.mixed_precision import experimental as mixed_precision
+    policy = mixed_precision.Policy('mixed_float16')
+    mixed_precision.set_policy(policy)
 from tensorflow.keras.models import Model
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Input
@@ -445,7 +447,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     if activation in {'softmax', 'sigmoid'}:
         x = Activation(activation)(x)
-    x = Activation('linear', dtype='float32')(x)
+    version_split = tf.__version__.split('.')
+    if version_split[0] == '2' and int(version_split[1]) > 1:
+        x = Activation('linear', dtype='float32')(x)
     model = Model(inputs=inputs, outputs=x, name='deeplabv3plus')
 
     # load weights
