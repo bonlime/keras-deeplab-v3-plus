@@ -18,9 +18,10 @@ https://github.com/JonathanCMitchell/mobilenet_v2_keras
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
+# from tensorflow.keras.mixed_precision import experimental as mixed_precision
+# policy = mixed_precision.Policy('mixed_float16')
+# mixed_precision.set_policy(policy)
 import tensorflow.compat.v1 as tf
-
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import layers
 from tensorflow.python.keras.layers import Input
@@ -169,7 +170,7 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, skip_connection, rate=1):
-    in_channels = inputs.shape[-1].value  # inputs._keras_shape[-1]
+    in_channels = inputs.shape[-1]  # inputs._keras_shape[-1]
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
@@ -445,7 +446,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     if activation in {'softmax', 'sigmoid'}:
         x = Activation(activation)(x)
-
+    # x = Activation('linear', dtype='float32')(x)
     model = Model(inputs=inputs, outputs=x, name='deeplabv3plus')
 
     # load weights
