@@ -373,7 +373,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('elu')(b4)
     # upsample. have to use compat because of the option align_corners
-    size_before = K.int_shape(x)
+    size_before = x.shape
 
     b4 = Lambda(lambda x: tf.image.resize_with_pad(x, target_height=size_before[1], target_width=size_before[2]))(b4)
     # b4 = UpSampling2D(size=(size_before[1],size_before[2]),interpolation='bilinear')(b4)
@@ -435,8 +435,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # size_in = K.int_shape(x)
     # size_out = K.int_shape(img_input)
     # x = UpSampling2D(size=(size_out[1] // size_in[1], size_out[2] // size_in[2]), interpolation='bilinear')(x)
-    size_before3 = K.int_shape(img_input)
-    x = Lambda(lambda xx: tf.image.resize_with_pad(xx, target_height=size_before3[1], target_width=size_before3[2]))(x)
+    x = Lambda(lambda xx: tf.image.resize_with_pad(xx, target_height=img_input.shape[1], target_width=img_input.shape[2]))(x)
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
