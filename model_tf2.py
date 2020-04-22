@@ -425,17 +425,22 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                        depth_activation=True, epsilon=1e-5)
 
     # you can use it with arbitary number of classes
+    model = return_model(x, classes, img_input, input_tensor, activation, weights, backbone)
+    return model
+
+
+def return_model(x, classes, img_input, input_tensor, activation, weights, backbone):
     if (weights == 'pascal_voc' and classes == 21) or (weights == 'cityscapes' and classes == 19):
         last_layer_name = 'logits_semantic'
     else:
         last_layer_name = 'custom_logits_semantic'
-
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
 
     # size_in = K.int_shape(x)
     # size_out = K.int_shape(img_input)
     # x = UpSampling2D(size=(size_out[1] // size_in[1], size_out[2] // size_in[2]), interpolation='bilinear')(x)
-    x = Lambda(lambda xx: tf.image.resize_with_pad(xx, target_height=img_input.shape[1], target_width=img_input.shape[2]))(x)
+    size_before3 = K.int_shape(img_input)
+    x = Lambda(lambda xx: tf.image.resize_with_pad(xx, target_height=size_before3[1], target_width=size_before3[2]))(x)
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
