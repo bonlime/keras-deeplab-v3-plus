@@ -4,10 +4,8 @@
 This model is based on TF repo:
 https://github.com/tensorflow/models/tree/master/research/deeplab
 On Pascal VOC, original model gets to 84.56% mIOU
-
 MobileNetv2 backbone is based on this repo:
 https://github.com/JonathanCMitchell/mobilenet_v2_keras
-
 # Reference
 - [Encoder-Decoder with Atrous Separable Convolution
     for Semantic Image Segmentation](https://arxiv.org/pdf/1802.02611.pdf)
@@ -213,7 +211,6 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
 def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3), classes=21, backbone='mobilenetv2',
               OS=16, alpha=1., activation=None):
     """ Instantiates the Deeplabv3+ architecture
-
     Optionally loads weights pre-trained
     on PASCAL VOC or Cityscapes. This model is available for TensorFlow only.
     # Arguments
@@ -239,15 +236,12 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                 - If `alpha` = 1, default number of filters from the paper
                     are used at each layer.
             Used only for mobilenetv2 backbone. Pretrained is only available for alpha=1.
-
     # Returns
         A Keras model instance.
-
     # Raises
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
         ValueError: in case of invalid argument for `weights` or `backbone`
-
     """
 
     if not (weights in {'pascal_voc', 'cityscapes', None}):
@@ -410,9 +404,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     if backbone == 'xception':
         # Feature projection
         # x4 (x2) block
-        size_before2 = tf.keras.backend.int_shape(x)
+        skip_size = tf.keras.backend.int_shape(skip1)
         x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        skip1.shape[1:3],
+                                                        skip_size[1:3],
                                                         method='bilinear', align_corners=True))(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
