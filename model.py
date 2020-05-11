@@ -45,6 +45,23 @@ WEIGHTS_PATH_X_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/d
 WEIGHTS_PATH_MOBILE_CS = "https://github.com/bonlime/keras-deeplab-v3-plus/releases/download/1.2/deeplabv3_mobilenetv2_tf_dim_ordering_tf_kernels_cityscapes.h5"
 
 
+class ExpandDimension(tf.keras.layers.Layer):
+    def __init__(self):
+        super(ExpandDimension, self).__init__()
+
+    def call(self, inputs, **kwargs):
+        return tf.expand_dims(inputs, 1)
+
+
+class Resize(tf.keras.layers.Layer):
+    def __init__(self, row, height):
+        super(Resize, self).__init__()
+        self.row, self.height = int(row), int(height)
+
+    def call(self, inputs, **kwargs):
+        return tf.compat.v1.image.resize(inputs, (self.row, self.height), align_corners=True)
+
+
 def SepConv_BN(x, filters, prefix, stride=1, kernel_size=3, rate=1, depth_activation=False, epsilon=1e-3):
     """ SepConv with BN between depthwise & pointwise. Optionally add activation after BN
         Implements right "same" padding for even kernel sizes
@@ -362,16 +379,15 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
+    b4 = ExpandDimension()(b4)
+    b4 = ExpandDimension()(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation(tf.nn.relu)(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = tf.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
-                                                    method='bilinear', align_corners=True))(b4)
+    b4 = Resize(size_before[1], size_before[2])(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -405,9 +421,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         # Feature projection
         # x4 (x2) block
         skip_size = tf.keras.backend.int_shape(skip1)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        skip_size[1:3],
-                                                        method='bilinear', align_corners=True))(x)
+        x = Resize(skip_size[1], skip_size[2])(x)
 
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
@@ -428,9 +442,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
     size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    size_before3[1:3],
-                                                    method='bilinear', align_corners=True))(x)
+    x = Resize(size_before3[1], size_before3[2])(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -467,6 +479,7 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
                                     cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
     return model
+
 
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
