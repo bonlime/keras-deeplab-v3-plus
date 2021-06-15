@@ -306,8 +306,8 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         first_block_filters = _make_divisible(32 * alpha, 8)
         x = Conv2D(first_block_filters,
                    kernel_size=3,
-                   strides=(2, 2), padding='same',
-                   use_bias=False, name='Conv')(img_input)
+                   strides=(2, 2), padding='same', use_bias=False,
+                   name='Conv' if input_shape[2] == 3 else 'Conv_')(img_input)
         x = BatchNormalization(
             epsilon=1e-3, momentum=0.999, name='Conv_BN')(x)
         x = Activation(tf.nn.relu6, name='Conv_Relu6')(x)
