@@ -24,7 +24,7 @@ import tensorflow as tf
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import layers
 from tensorflow.python.keras.layers import Input
-from tensorflow.python.keras.layers import Lambda
+from tensorflow.python.keras.layers import Reshape
 from tensorflow.python.keras.layers import Activation
 from tensorflow.python.keras.layers import Concatenate
 from tensorflow.python.keras.layers import Add
@@ -361,17 +361,18 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
     # Image Feature branch
     shape_before = tf.shape(x)
     b4 = GlobalAveragePooling2D()(x)
+    b4_shape = tf.keras.backend.int_shape(b4)
     # from (b_size, channels)->(b_size, 1, 1, channels)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
-    b4 = Lambda(lambda x: K.expand_dims(x, 1))(b4)
+    b4 = Reshape((1, 1, b4_shape[1]))(b4)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation(tf.nn.relu)(b4)
     # upsample. have to use compat because of the option align_corners
     size_before = tf.keras.backend.int_shape(x)
-    b4 = Lambda(lambda x: tf.compat.v1.image.resize(x, size_before[1:3],
-                                                    method='bilinear', align_corners=True))(b4)
+    b4 = tf.keras.layers.experimental.preprocessing.Resizing(
+            *size_before[1:3], interpolation="bilinear"
+        )(b4)
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
     b0 = BatchNormalization(name='aspp0_BN', epsilon=1e-5)(b0)
@@ -405,10 +406,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
         # Feature projection
         # x4 (x2) block
         skip_size = tf.keras.backend.int_shape(skip1)
-        x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                        skip_size[1:3],
-                                                        method='bilinear', align_corners=True))(x)
-
+        x = tf.keras.layers.experimental.preprocessing.Resizing(
+                *skip_size[1:3], interpolation="bilinear"
+            )(x)
         dec_skip1 = Conv2D(48, (1, 1), padding='same',
                            use_bias=False, name='feature_projection0')(skip1)
         dec_skip1 = BatchNormalization(
@@ -428,10 +428,9 @@ def Deeplabv3(weights='pascal_voc', input_tensor=None, input_shape=(512, 512, 3)
 
     x = Conv2D(classes, (1, 1), padding='same', name=last_layer_name)(x)
     size_before3 = tf.keras.backend.int_shape(img_input)
-    x = Lambda(lambda xx: tf.compat.v1.image.resize(xx,
-                                                    size_before3[1:3],
-                                                    method='bilinear', align_corners=True))(x)
-
+    x = tf.keras.layers.experimental.preprocessing.Resizing(
+            *size_before3[1:3], interpolation="bilinear"
+        )(x)
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
     if input_tensor is not None:
