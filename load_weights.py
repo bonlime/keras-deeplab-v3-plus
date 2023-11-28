@@ -13,7 +13,7 @@ for backbone in ['mobilenetv2', 'xception']:
                       classes=21, backbone=backbone, weights=None)
 
     WEIGHTS_DIR = 'weights/' + backbone
-    print('Loading weights from', WEIGHTS_DIR)
+    print('Loading weights from:', WEIGHTS_DIR)
     for layer in tqdm(model.layers):
         if layer.weights:
             weights = []
